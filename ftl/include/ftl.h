@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdint>
 #include <cstddef>
+#include<mutex>
 
 using namespace std;
 
@@ -29,6 +30,7 @@ private:
     unordered_map<uint64_t, PhysicalAddress> mapping;
     size_t next_block;
     size_t next_page;
+    mutable mutex mtx;
 
     PhysicalAddress allocatePage();
 

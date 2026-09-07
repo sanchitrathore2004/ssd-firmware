@@ -1,4 +1,5 @@
 #include"nand_flash.h"
+#include<mutex>
 
 NandFlash::NandFlash(size_t num_blocks, size_t pages_per_block, size_t page_size) {
     this->num_blocks = num_blocks;
@@ -21,17 +22,19 @@ bool NandFlash::program(size_t block, size_t page, const vector<uint8_t>& data) 
         return false;
     }
 
-    if(blocks[block][page].programmed == true) {
-        return false;
-    }
-
     if(data.size() != page_size) {
         return false;
     }
 
-    blocks[block][page].data = data;
-    blocks[block][page].programmed = true;
-    blocks[block][page].valid = true;
+    {
+        lock_guard<mutex> lock(mtx);
+        if(blocks[block][page].programmed == true) {
+            return false;
+        }
+        blocks[block][page].data = data;
+        blocks[block][page].programmed = true;
+        blocks[block][page].valid = true;
+    }
 
     return true;
 }
@@ -41,7 +44,10 @@ vector<uint8_t> NandFlash::read(size_t block, size_t page) {
         return {};
     }
 
-    return blocks[block][page].data;
+    {
+        lock_guard<mutex> lock(mtx);
+        return blocks[block][page].data;
+    }
 }
 
 bool NandFlash::erase(size_t block) {
@@ -49,13 +55,16 @@ bool NandFlash::erase(size_t block) {
         return false;
     }
 
-    for(size_t page = 0; page < pages_per_block; page++) {
-        blocks[block][page].data.assign(page_size, 0);
-        blocks[block][page].programmed = false;
-        blocks[block][page].valid = false;
-    }
+    {
+        lock_guard<mutex> lock(mtx);
+        for(size_t page = 0; page < pages_per_block; page++) {
+            blocks[block][page].data.assign(page_size, 0);
+            blocks[block][page].programmed = false;
+            blocks[block][page].valid = false;
+        }
 
-    erase_count[block]++;
+        erase_count[block]++;
+    }
 
     return true;
 }
@@ -73,7 +82,10 @@ bool NandFlash::invalidate(size_t block, size_t page) {
         return false;
     }
 
-    blocks[block][page].valid = false;
+    {
+        lock_guard<mutex> lock(mtx);
+        blocks[block][page].valid = false;
+    }
 
     return true;
 }
@@ -83,7 +95,10 @@ bool NandFlash::isValid(size_t block, size_t page) {
         return false;
     }
 
-    return blocks[block][page].valid;
+    {
+        lock_guard<mutex> lock(mtx);
+        return blocks[block][page].valid;
+    }
 }
 
 bool NandFlash::isProgrammed(size_t block, size_t page) {
@@ -91,7 +106,10 @@ bool NandFlash::isProgrammed(size_t block, size_t page) {
         return false;
     }
 
-    return blocks[block][page].programmed;
+    {
+        lock_guard<mutex> lock(mtx);
+        return blocks[block][page].programmed;
+    }
 }
 
 size_t NandFlash::getNumBlocks() {
@@ -100,5 +118,8 @@ size_t NandFlash::getNumBlocks() {
 
 uint32_t NandFlash::getEraseCount(size_t block) {
     if(block >= num_blocks) return UINT32_MAX;
-    return erase_count[block];
+    {
+        lock_guard<mutex> lock(mtx);
+        return erase_count[block];
+    }
 }

@@ -3,6 +3,7 @@
 #include<cstdint>
 #include <cstddef>
 #include"flash_page.h"
+#include<mutex>
 
 class NandFlash {
     private:
@@ -11,6 +12,7 @@ class NandFlash {
         size_t page_size;
         vector<vector<FlashPage>> blocks;
         vector<uint32_t> erase_count;
+        mutable mutex mtx;
     public:
         NandFlash(size_t num_blocks, size_t pages_per_block, size_t page_size);
 
